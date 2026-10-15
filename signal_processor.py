@@ -7,23 +7,19 @@
 - 格式: 每(调制,SNR)一个txt文件, 每行一个信号, 128个空格分隔的(real+imagj)复数
 - SNR范围: -20 ~ 18 dB (2 dB步进), 本系统使用 0 ~ 18 dB
 - 信号长度: 128 复采样点
-- 调制映射: BPSK→BPSK, 8PSK→8PSK, PAM4→4ASK, GFSK→2FSK
+- 调制类型: BPSK、QPSK、8PSK、QAM16（兼容16QAM名称）
 =============================================================================
 """
 import numpy as np
 import os
+from config import MODULATION_TYPES, RADIOML_NAME_MAP
 
 
 # RadioML 原始调制名 → 本系统调制名
-NAME_MAP = {
-    'BPSK': 'BPSK',
-    '8PSK': '8PSK',
-    'PAM4': '4ASK',
-    'GFSK': '2FSK',
-}
+NAME_MAP = RADIOML_NAME_MAP
 
 # 本系统支持的 4 类调制
-SUPPORTED_MODS = ('4ASK', '2FSK', 'BPSK', '8PSK')
+SUPPORTED_MODS = tuple(MODULATION_TYPES)
 
 # SNR 范围 (本系统使用)
 SNR_MIN = 0
@@ -36,7 +32,7 @@ class SignalProcessor:
     用法:
         sp = SignalProcessor()
         sig, mod, snr = sp.get_signal('BPSK', snr_db=10)
-        sigs, mods, snrs = sp.get_batch('4ASK', snr_db=5, n=100)
+        sigs = sp.get_batch('QPSK', snr_db=4, n=100)
         print(sp.dataset_info())
     """
 
@@ -67,7 +63,7 @@ class SignalProcessor:
         """随机获取一个信号。
 
         参数:
-            mod_type: '4ASK'|'2FSK'|'BPSK'|'8PSK'
+            mod_type: 'BPSK'|'QPSK'|'8PSK'|'QAM16'
             snr_db:   SNR值 (0~18, 2dB步进), None则随机选取
         返回:
             (signal, mod_type, actual_snr)
@@ -214,7 +210,7 @@ class SignalProcessor:
             snr_set.add(snr)
             valid_files.append((filename, mapped, snr))
 
-        self._mod_types = sorted(mod_set)
+        self._mod_types = [mod for mod in MODULATION_TYPES if mod in mod_set]
         self._snr_levels = sorted(snr_set)
 
         # 第二遍: 加载每个文件的信号

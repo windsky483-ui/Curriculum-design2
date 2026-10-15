@@ -16,7 +16,16 @@ from sklearn.metrics import (
 )
 from sklearn.model_selection import GridSearchCV
 
-from config import MODEL_CONFIGS, RANDOM_SEED
+from config import MODEL_CONFIGS, RANDOM_SEED, MODULATION_TYPES, LEVEL1_GROUPS, LEVEL2_MODS
+
+
+def validate_model_labels(label_names):
+    """Reject old class mappings before interpreting numeric predictions."""
+    expected = {'level1': LEVEL1_GROUPS, 'level2': LEVEL2_MODS}
+    compatible = (label_names == expected if isinstance(label_names, dict)
+                  else label_names == MODULATION_TYPES)
+    if not compatible:
+        raise ValueError('模型调制类别与最终报告不一致，请运行 python main.py --train 重新训练。')
 
 def isotonic_regression(y):
     """PAVA (Pool Adjacent Violators Algorithm) 保序回归.
@@ -296,6 +305,7 @@ def load_model(filepath='data/best_model.pkl'):
     """加载模型及相关元数据"""
     with open(filepath, 'rb') as f:
         data = pickle.load(f)
+    validate_model_labels(data['label_names'])
     return data['model'], data['scaler'], data['feature_names'], data['label_names']
 
 
@@ -333,50 +343,50 @@ def load_per_snr_models(filepath='data/per_snr_models.pkl'):
     """
     with open(filepath, 'rb') as f:
         data = pickle.load(f)
+    validate_model_labels(data['label_names'])
     return (data['models'], data['scalers'],
             data['feature_names'], data['label_names'])
 
 def hierarchical_predict(model_dict, scaler_dict, X):
     """两级层次分类预测.
 
-    Level-1: ASK vs FSK vs PSK (3分类)
-    Level-2: BPSK vs 8PSK (仅当Level-1预测为PSK时触发)
+    Level-1: PSK vs QAM
+    Level-2: BPSK vs QPSK vs 8PSK (仅当Level-1预测为PSK时触发)
 
     参数:
         model_dict:  {'level1': model, 'level2': model}
         scaler_dict: {'level1': scaler, 'level2': scaler}
         X:           特征矩阵 (n_samples, 27)
     返回:
-        y_pred:  4类预测标签 (0=4ASK, 1=2FSK, 2=BPSK, 3=8PSK)
+        y_pred:  4类预测标签 (0=BPSK, 1=QPSK, 2=8PSK, 3=QAM16)
         y_proba: 4类概率 (n_samples, 4)
     """
     n_samples = len(X)
 
-    # 第一级分类：ASK、FSK、PSK
+    # Probability columns follow estimator.classes_, not assumed positions.
     X_s1 = scaler_dict['level1'].transform(X)
     pred_l1 = model_dict['level1'].predict(X_s1)
-    proba_l1 = model_dict['level1'].predict_proba(X_s1)  # (n, 3): ASK, FSK, PSK
+    proba_l1 = model_dict['level1'].predict_proba(X_s1)
+    columns_l1 = {int(label): col for col, label in enumerate(model_dict['level1'].classes_)}
+    psk_group = LEVEL1_GROUPS.index('PSK')
+    qam_group = LEVEL1_GROUPS.index('QAM')
 
     y_pred = np.zeros(n_samples, dtype=int)
     y_proba = np.zeros((n_samples, 4))
 
     for i in range(n_samples):
-        if pred_l1[i] == 2:  # PSK → Level 2
-            X_s2 = scaler_dict['level2'].transform([X[i]])
-            pred_l2 = model_dict['level2'].predict(X_s2)[0]
-            proba_l2 = model_dict['level2'].predict_proba(X_s2)[0]
-
-            p_ask = proba_l1[i][0]
-            p_fsk = proba_l1[i][1]
-            p_psk = proba_l1[i][2]
-            y_proba[i] = [p_ask, p_fsk,
-                          p_psk * proba_l2[0],   # P(BPSK)
-                          p_psk * proba_l2[1]]   # P(8PSK)
-            y_pred[i] = 2 + pred_l2  # BPSK=2, 8PSK=3
+        X_s2 = scaler_dict['level2'].transform([X[i]])
+        proba_l2 = model_dict['level2'].predict_proba(X_s2)[0]
+        p_psk = proba_l1[i][columns_l1[psk_group]]
+        y_proba[i, MODULATION_TYPES.index('QAM16')] = proba_l1[i][columns_l1[qam_group]]
+        for col, label in enumerate(model_dict['level2'].classes_):
+            name = LEVEL2_MODS[int(label)]
+            y_proba[i, MODULATION_TYPES.index(name)] = p_psk * proba_l2[col]
+        if pred_l1[i] == psk_group:
+            pred_l2 = int(model_dict['level2'].predict(X_s2)[0])
+            y_pred[i] = MODULATION_TYPES.index(LEVEL2_MODS[pred_l2])
         else:
-            # ASK → 4ASK(class 0), FSK → 2FSK(class 1)
-            y_proba[i] = [proba_l1[i][0], proba_l1[i][1], 0.0, 0.0]
-            y_pred[i] = pred_l1[i]
+            y_pred[i] = MODULATION_TYPES.index('QAM16')
 
     # 按配置应用单调性退化
     degradation_rate = model_dict.get('degradation_rate', 0.0)

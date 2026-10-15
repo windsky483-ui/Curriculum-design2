@@ -5,15 +5,11 @@
 import numpy as np
 import os
 import pickle
+from config import MODULATION_TYPES, RADIOML_NAME_MAP
 from feature_extraction import extract_features
 
-# RadioML 调制名 → 本系统调制名 映射 (4类: 4ASK, 2FSK, BPSK, 8PSK)
-RADIOML_NAME_MAP = {
-    'BPSK': 'BPSK', '8PSK': '8PSK',
-    'PAM4': '4ASK',
-    'GFSK': '2FSK',
-}
-SUPPORTED_MODS = {'4ASK', '2FSK', 'BPSK', '8PSK'}
+# The report and GUI use the same four canonical labels.
+SUPPORTED_MODS = set(MODULATION_TYPES)
 
 
 def load_external_signals(filepath, min_snr=None):
@@ -109,6 +105,8 @@ def _load_radioml_h5(filepath, min_snr=None):
             labels_list = [labels_list[i] for i in valid]
         snr_list = [snr_list[i] for i in valid]
 
+    if labels_list is not None:
+        labels_list = [RADIOML_NAME_MAP.get(label, label) for label in labels_list]
     return signals_list, labels_list, snr_list
 
 
@@ -180,7 +178,8 @@ def _parse_generic(data):
 
     sigs = np.array(sigs)
     signals_list = _iq_to_complex(sigs)
-    labels_list = [_decode_label(l) for l in labs] if labs is not None else None
+    labels_list = [RADIOML_NAME_MAP.get(_decode_label(l), _decode_label(l))
+                   for l in labs] if labs is not None else None
     return signals_list, labels_list, None
 
 
@@ -260,7 +259,7 @@ def test_dataset_accuracy(filepath, model, scaler, label_names, min_snr=0):
         from ai_model import hierarchical_predict
         preds, probs = hierarchical_predict(model, scaler, X)
         confs = np.max(probs, axis=1)
-        flat_labels = ['4ASK', '2FSK', 'BPSK', '8PSK']
+        flat_labels = MODULATION_TYPES
     else:
         X_scaled = scaler.transform(X)
         preds = model.predict(X_scaled)

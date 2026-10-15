@@ -157,7 +157,8 @@ def main():
         ['PAM4', 'GFSK', 'QPSK', 'QAM16'],          # 4ASK + 2FSK + QPSK + 16QAM
         ['PAM4', 'GFSK', '8PSK', 'QAM16'],          # 4ASK + 2FSK + 8PSK + 16QAM
         ['PAM4', 'GFSK', 'BPSK', 'QPSK'],           # 4ASK + 2FSK + BPSK + QPSK ← 推荐
-        ['PAM4', 'GFSK', 'BPSK', '8PSK'],           # 4ASK + 2FSK + BPSK + 8PSK (当前)
+        ['PAM4', 'GFSK', 'BPSK', '8PSK'],           # 旧版本类别，保留作候选对比
+        ['BPSK', 'QPSK', '8PSK', 'QAM16'],         # 最终报告与当前配置
         ['PAM4', 'GFSK', 'QPSK', '8PSK'],           # 4ASK + 2FSK + QPSK + 8PSK
 
         # PSK类内两种 + ASK + FSK

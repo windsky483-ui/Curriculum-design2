@@ -7,9 +7,9 @@ from dataset_builder import build_dataset, split_and_normalize
 from sklearn.svm import SVC
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.metrics import confusion_matrix
-from config import RANDOM_SEED
+from config import RANDOM_SEED, MODULATION_TYPES
 
-label_names = ['4ASK', '2FSK', 'BPSK', '8PSK']
+label_names = MODULATION_TYPES
 
 for snr in [0, 2, 4, 6, 8, 10, 12, 14, 16, 18]:
     print(f'\n=== SNR={snr:>2d}dB (700 train / 300 test per class) ===')

@@ -11,7 +11,7 @@ import os
 
 from config import (
     MODULATION_TYPES, SAMPLES_PER_CLASS, TEST_RATIO, RANDOM_SEED,
-    SNR_RANGE, DEFAULT_SNR
+    SNR_RANGE, DEFAULT_SNR, MOD_GROUP, LEVEL1_GROUPS, LEVEL2_MODS
 )
 from signal_processor import _get_processor
 from feature_extraction import extract_features
@@ -163,28 +163,15 @@ def load_dataset(filepath='data/dataset.pkl'):
         data = pickle.load(f)
     return data
 
-# 第1级: 大类分组 (ASK / FSK / PSK)
-MOD_GROUP = {
-    '4ASK': 'ASK',
-    '2FSK': 'FSK',
-    'BPSK': 'PSK',
-    '8PSK': 'PSK',
-}
-LEVEL1_GROUPS = ['ASK', 'FSK', 'PSK']
-
-# 第2级: PSK内部细分
-LEVEL2_MODS = ['BPSK', '8PSK']
-
-
 def map_to_group_labels(y_4class, label_names_4class):
-    """将4类标签映射为3组标签 (Level-1).
+    """将报告中的四类标签映射为PSK和QAM两组 (Level-1).
 
     参数:
         y_4class: 原始4类整数标签
-        label_names_4class: 4类名称列表 (e.g. ['4ASK','2FSK','BPSK','8PSK'])
+        label_names_4class: ['BPSK', 'QPSK', '8PSK', 'QAM16']
     返回:
-        y_group: 3组整数标签 (0=ASK, 1=FSK, 2=PSK)
-        group_names: ['ASK', 'FSK', 'PSK']
+        y_group: 2组整数标签 (0=PSK, 1=QAM)
+        group_names: ['PSK', 'QAM']
     """
     label_to_group = {}
     for i, name in enumerate(label_names_4class):
@@ -194,14 +181,14 @@ def map_to_group_labels(y_4class, label_names_4class):
 
 
 def filter_psk_samples(X, y, label_names):
-    """从全量数据中筛选PSK类样本 (BPSK + 8PSK), 用于Level-2训练.
+    """筛选BPSK、QPSK、8PSK样本，用于Level-2三分类训练.
 
     返回:
         X_psk, y_psk: PSK-only 数据
-        psk_labels: ['BPSK', '8PSK']
+        psk_labels: ['BPSK', 'QPSK', '8PSK']
     """
     psk_indices = []
-    psk_label_map = {}  # 原始4类标签 → Level-2标签 (0=BPSK, 1=8PSK)
+    psk_label_map = {}  # 原始四类标签 → PSK内部三类标签
     for i, name in enumerate(label_names):
         if name in LEVEL2_MODS:
             psk_label_map[i] = LEVEL2_MODS.index(name)

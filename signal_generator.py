@@ -129,6 +129,7 @@ GENERATORS = {
     'QPSK':  lambda snr_db=15, n_sym=N_SYMBOLS: generate_psk(M=4, snr_db=snr_db, n_symbols=n_sym),
     '8PSK':  lambda snr_db=15, n_sym=N_SYMBOLS: generate_psk(M=8, snr_db=snr_db, n_symbols=n_sym),
     '16QAM': lambda snr_db=15, n_sym=N_SYMBOLS: generate_qam(M=16, snr_db=snr_db, n_symbols=n_sym),
+    'QAM16': lambda snr_db=15, n_sym=N_SYMBOLS: generate_qam(M=16, snr_db=snr_db, n_symbols=n_sym),
     '64QAM': lambda snr_db=15, n_sym=N_SYMBOLS: generate_qam(M=64, snr_db=snr_db, n_symbols=n_sym),
 }
 

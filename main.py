@@ -26,8 +26,8 @@ np.random.seed(RANDOM_SEED)
 def train_models():
     """
     方案A+B+多级分类: 逐SNR独立两级层次分类
-      Level-1: ASK vs FSK vs PSK (3分类, 绕开4ASK/BPSK直接对抗)
-      Level-2: BPSK vs 8PSK (2分类, 仅PSK类信号触发)
+      Level-1: PSK vs QAM (2分类)
+      Level-2: BPSK vs QPSK vs 8PSK (3分类, 仅PSK类信号触发)
     - 无放回唯一采样, 每SNR独立GridSearch
     - 3次重复取平均
     """
@@ -71,7 +71,7 @@ def train_models():
     for idx, snr in enumerate(snr_levels):
         print(f'[{idx+1}/{len(snr_levels)}] SNR={snr:>2d}dB ', end='', flush=True)
 
-        # === Level-1 GridSearch (3-class) ===
+        # === Level-1 GridSearch (PSK / QAM) ===
         X_gs, y_gs, fn, _ln4 = build_dataset(
             snr_db=snr, samples_per_class=1000,
             random_state=RANDOM_SEED, show_progress=False
@@ -84,7 +84,7 @@ def train_models():
         C1 = best_l1.get('C', 10.0)
         g1 = best_l1.get('gamma', 'scale')
 
-        # === Level-2 GridSearch (2-class: BPSK vs 8PSK) ===
+        # === Level-2 GridSearch (BPSK / QPSK / 8PSK) ===
         X_psk, y_psk, _ = filter_psk_samples(X_gs, y_gs, _ln4)
         Xt_p, _, yt_p, _, _ = split_and_normalize(X_psk, y_psk)
         _, best_l2, cv_l2 = tune_hyperparams('SVM', Xt_p, yt_p)
@@ -109,7 +109,7 @@ def train_models():
             # 分层划分数据，保留原始四类标签用于评估
             from sklearn.model_selection import train_test_split
             idx_train, idx_test = train_test_split(
-                np.arange(len(X)), test_size=0.3, random_state=seed, stratify=y_l1
+                np.arange(len(X)), test_size=0.3, random_state=seed, stratify=y_4class
             )
             Xt, Xv = X[idx_train], X[idx_test]
             yt_4class, yv_4class = y_4class[idx_train], y_4class[idx_test]
@@ -273,7 +273,7 @@ def compare_svm_performance():
     snr_levels = get_all_snr_levels()
     N_REPEATS = 3
     print(f'\nSNR等级: {snr_levels}')
-    print(f'架构: Level-1(ASK/FSK/PSK) → Level-2(BPSK/8PSK)')
+    print('架构: Level-1(PSK/QAM) → Level-2(BPSK/QPSK/8PSK)')
     print(f'每SNR {N_REPEATS}次重复取平均\n')
 
     for snr in snr_levels:
@@ -288,7 +288,7 @@ def compare_svm_performance():
             y_l1, _ = map_to_group_labels(y_4c, ln)
 
             idx_tr, idx_te = train_test_split(
-                np.arange(len(X)), test_size=0.3, random_state=seed, stratify=y_l1
+                np.arange(len(X)), test_size=0.3, random_state=seed, stratify=y_4c
             )
             Xt, Xv = X[idx_tr], X[idx_te]
             yt_4c, yv_4c = y_4c[idx_tr], y_4c[idx_te]
@@ -329,7 +329,11 @@ def launch_gui_mode():
     if os.path.exists(model_path):
         print(f'加载逐SNR多级模型: {model_path}')
         from ai_model import load_per_snr_models
-        models, scalers, feature_names, label_names = load_per_snr_models(model_path)
+        try:
+            models, scalers, feature_names, label_names = load_per_snr_models(model_path)
+        except ValueError as exc:
+            print(exc)
+            return
         print(f'  模型数量: {len(models)} 个SNR等级')
         print(f'  SNR范围: {sorted(models.keys())}')
         if feature_names:

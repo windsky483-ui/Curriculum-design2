@@ -13,16 +13,11 @@ from sklearn.svm import SVC
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 
-from config import RANDOM_SEED
+from config import RANDOM_SEED, MODULATION_TYPES, RADIOML_NAME_MAP
 
-# RadioML 调制名 → 本系统名 映射 (4类: 4ASK, 2FSK, BPSK, 8PSK)
-NAME_MAP = {
-    'BPSK': 'BPSK', '8PSK': '8PSK',
-    'PAM4': '4ASK',
-    'GFSK': '2FSK',
-}
+NAME_MAP = RADIOML_NAME_MAP
 # 本系统支持的调制类型
-SUPPORTED = {'4ASK', '2FSK', 'BPSK', '8PSK'}
+SUPPORTED = set(MODULATION_TYPES)
 
 
 def load_radioml(filepath, min_snr=0, max_samples_per_class=None):
@@ -84,7 +79,7 @@ def main():
     X, y_str = load_radioml(args.dataset, min_snr=0, max_samples_per_class=args.max_per_class)
 
     # 2. 标签编码
-    label_names = sorted(set(y_str))
+    label_names = [name for name in MODULATION_TYPES if name in set(y_str)]
     name_to_idx = {n: i for i, n in enumerate(label_names)}
     y = np.array([name_to_idx[n] for n in y_str])
     print(f'  类别: {label_names}')

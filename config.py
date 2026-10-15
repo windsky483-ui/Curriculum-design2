@@ -10,8 +10,15 @@ RS = 1e3                  # 符号速率 (Baud)
 N_SYMBOLS = 1500           # 每个信号生成的符号数（平衡速度与特征质量）
 SPB = int(FS / RS)        # 每个符号的采样点数 (自动计算)
 MODULATION_TYPES = [
-    '4ASK', '2FSK', 'BPSK', '8PSK'
+    'BPSK', 'QPSK', '8PSK', 'QAM16'
 ]
+
+# QAM16 is the RadioML/report spelling of 16QAM.
+RADIOML_NAME_MAP = {name: name for name in MODULATION_TYPES}
+RADIOML_NAME_MAP['16QAM'] = 'QAM16'
+MOD_GROUP = {'BPSK': 'PSK', 'QPSK': 'PSK', '8PSK': 'PSK', 'QAM16': 'QAM'}
+LEVEL1_GROUPS = ['PSK', 'QAM']
+LEVEL2_MODS = ['BPSK', 'QPSK', '8PSK']
 
 # RadioML 2016.10a 数据集路径
 DATASET_PATH = 'test_dataset/RML2016.10a-main/RML2016.10a-main/2016.10a'

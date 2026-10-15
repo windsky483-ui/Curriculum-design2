@@ -21,7 +21,7 @@ from config import (
 from signal_processor import get_signal, get_all_snr_levels, get_available_mod_types
 from feature_extraction import extract_features, extract_features_batch
 from ai_model import (create_model, train_model, evaluate_model, load_model,
-                       hierarchical_predict, hierarchical_predict_single)
+                       hierarchical_predict, hierarchical_predict_single, validate_model_labels)
 from database import (
     init_database, insert_signal_record, insert_recognition_result,
     get_recognition_history, get_recognition_statistics,
@@ -46,18 +46,20 @@ class ModulationRecognitionGUI:
         self.models = models or {}
         self.scalers = scalers or {}
         self.feature_names = feature_names
+        if label_names is not None:
+            validate_model_labels(label_names)
 
         # 检测模型类型: 层级式 (label_names为dict) 还是 扁平式 (label_names为list)
         if isinstance(label_names, dict):
-            # 层级式: {'level1': ['ASK','FSK','PSK'], 'level2': ['BPSK','8PSK']}
+            # 层级式: PSK/QAM → BPSK/QPSK/8PSK
             self.label_names = label_names
             self._is_hierarchical = True
             # 展平4类标签用于显示
-            self._flat_labels = ['4ASK', '2FSK', 'BPSK', '8PSK']
+            self._flat_labels = list(MODULATION_TYPES)
         else:
             # 扁平式 (旧模型兼容)
             if label_names is not None:
-                self.label_names = ['2FSK' if n == '4FSK' else n for n in label_names]
+                self.label_names = list(label_names)
             else:
                 self.label_names = None
             self._is_hierarchical = False
@@ -559,7 +561,7 @@ class ModulationRecognitionGUI:
         if isinstance(ln, dict):
             self.label_names = ln
             self._is_hierarchical = True
-            self._flat_labels = ['4ASK', '2FSK', 'BPSK', '8PSK']
+            self._flat_labels = list(MODULATION_TYPES)
         else:
             self.label_names = ln
             self._is_hierarchical = False
